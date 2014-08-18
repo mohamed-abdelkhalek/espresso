@@ -107,6 +107,11 @@ static size_t size_of_extern_nodeforces;
 static __device__ __constant__ LB_parameters_gpu para;
 static const float c_sound_sq = 1.0f/3.0f;
 
+// #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+// __global__ void calc_virtual_sites_ibm_gpu(LB_nodes_gpu n_a, CUDA_particle_data *particle_data, CUDA_particle_force *particle_force, LB_node_force_gpu node_f, CUDA_particle_seed *part);
+// __device__ void calc_virtual_sites_ibm_gpu_particle(LB_nodes_gpu n_a, float *delta, CUDA_particle_data *particle_data, CUDA_particle_force *particle_force, unsigned int part_index, LB_randomnr_gpu *rn_part, float *delta_j, unsigned int *node_index, LB_node_force_gpu node_f);
+// #endif
+
 /*-------------------------------------------------------*/
 /*********************************************************/
 /** \name device functions called by kernel functions */
@@ -1967,11 +1972,29 @@ __device__ void calc_viscous_force(LB_nodes_gpu n_a, float *delta, float * partg
       particle_force[part_index].f[1] -= partgrad2[node+ii*8]/8.0f;
       particle_force[part_index].f[2] -= partgrad3[node+ii*8]/8.0f;
     }
-    
+
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+    if ( particle_data[part_index].isVirtual )
+      {
+   delta_j[0+3*ii] =  particle_data[part_index].force[0]*para.time_step*para.tau/para.agrid;
+   delta_j[1+3*ii] =  particle_data[part_index].force[1]*para.time_step*para.tau/para.agrid;
+   delta_j[2+3*ii] =  particle_data[part_index].force[2]*para.time_step*para.tau/para.agrid;
+ }
+    else
+      {
+   /* note that scforce is zero if SHANCHEN is not #defined */
+   delta_j[0+3*ii] -= (scforce[0+ii*3]+viscforce[0+ii*3])*para.time_step*para.tau/para.agrid;
+   delta_j[1+3*ii] -= (scforce[1+ii*3]+viscforce[1+ii*3])*para.time_step*para.tau/para.agrid;
+   delta_j[2+3*ii] -= (scforce[2+ii*3]+viscforce[2+ii*3])*para.time_step*para.tau/para.agrid;
+ }
+  
+#else  
     /* note that scforce is zero if SHANCHEN is not #defined */
     delta_j[0+3*ii] -= (scforce[0+ii*3]+viscforce[0+ii*3])*para.time_step*para.tau/para.agrid;
     delta_j[1+3*ii] -= (scforce[1+ii*3]+viscforce[1+ii*3])*para.time_step*para.tau/para.agrid;
     delta_j[2+3*ii] -= (scforce[2+ii*3]+viscforce[2+ii*3])*para.time_step*para.tau/para.agrid;
+#endif  	
+
  }
 #ifdef SHANCHEN
  for(int node=0 ; node < 8 ; node++ ) { 
@@ -2723,6 +2746,125 @@ __global__ void calc_fluid_particle_ia_three_point_couple(LB_nodes_gpu n_a, CUDA
   }
 }
 
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+__device__ void calc_virtual_sites_ibm_gpu_particle(LB_nodes_gpu n_a, float *delta, CUDA_particle_data *particle_data, CUDA_particle_force *particle_force, unsigned int part_index, LB_randomnr_gpu *rn_part, float *delta_j, unsigned int *node_index, LB_node_force_gpu node_f, LB_rho_v_gpu *d_v)
+{  
+  // The code below is an exact copy of the first part of calc_viscous_force
+  // Now however we should get a different result because the particle forces have been added to the lb fluid
+    int   left_node_index[3];
+  float interpolated_u1, interpolated_u2, interpolated_u3;
+  float interpolated_rho[LB_COMPONENTS];
+  float temp_delta[6];
+  float temp_delta_half[6];
+  float viscforce[3*LB_COMPONENTS];
+  float scforce[3*LB_COMPONENTS];
+  float mode[19*LB_COMPONENTS];
+#ifdef SHANCHEN
+  float gradrho1, gradrho2, gradrho3;
+  float Rho;
+#endif 
+  #pragma unroll
+  for(int ii=0; ii<LB_COMPONENTS; ++ii)
+  { 
+    #pragma unroll
+    for(int jj=0; jj<3; ++jj)
+    { 
+      scforce[jj+ii*3]  =0.0f;
+      viscforce[jj+ii*3]=0.0f;
+      delta_j[jj+ii*3]  =0.0f;
+    }
+}
+    
+  /** see ahlrichs + duenweg page 8227 equ (10) and (11) */
+  #pragma unroll
+  for(int i=0; i<3; ++i)
+  {
+    float scaledpos = particle_data[part_index].p[i]/para.agrid - 0.5f;
+    left_node_index[i] = (int)(floorf(scaledpos));
+    //printf("scaledpos %f \t myleft: %d \n", scaledpos, left_node_index[i]);
+    temp_delta[3+i] = scaledpos - left_node_index[i];
+    temp_delta[i] = 1.0f - temp_delta[3+i];
+    /**further value used for interpolation of fluid velocity at part pos near boundaries */
+    temp_delta_half[3+i] = (scaledpos - left_node_index[i])*2.0f;
+    temp_delta_half[i] = 2.0f - temp_delta_half[3+i];
+  }
+
+  delta[0] = temp_delta[0] * temp_delta[1] * temp_delta[2];
+  delta[1] = temp_delta[3] * temp_delta[1] * temp_delta[2];
+  delta[2] = temp_delta[0] * temp_delta[4] * temp_delta[2];
+  delta[3] = temp_delta[3] * temp_delta[4] * temp_delta[2];
+  delta[4] = temp_delta[0] * temp_delta[1] * temp_delta[5];
+  delta[5] = temp_delta[3] * temp_delta[1] * temp_delta[5];
+  delta[6] = temp_delta[0] * temp_delta[4] * temp_delta[5];
+  delta[7] = temp_delta[3] * temp_delta[4] * temp_delta[5];
+
+  // modulo for negative numbers is strange at best, shift to make sure we are positive
+  int x = left_node_index[0] + para.dim_x;
+  int y = left_node_index[1] + para.dim_y;
+  int z = left_node_index[2] + para.dim_z;
+
+  node_index[0] = x%para.dim_x     + para.dim_x*(y%para.dim_y)     + para.dim_x*para.dim_y*(z%para.dim_z);
+  node_index[1] = (x+1)%para.dim_x + para.dim_x*(y%para.dim_y)     + para.dim_x*para.dim_y*(z%para.dim_z);
+  node_index[2] = x%para.dim_x     + para.dim_x*((y+1)%para.dim_y) + para.dim_x*para.dim_y*(z%para.dim_z);
+  node_index[3] = (x+1)%para.dim_x + para.dim_x*((y+1)%para.dim_y) + para.dim_x*para.dim_y*(z%para.dim_z);
+  node_index[4] = x%para.dim_x     + para.dim_x*(y%para.dim_y)     + para.dim_x*para.dim_y*((z+1)%para.dim_z);
+  node_index[5] = (x+1)%para.dim_x + para.dim_x*(y%para.dim_y)     + para.dim_x*para.dim_y*((z+1)%para.dim_z);
+  node_index[6] = x%para.dim_x     + para.dim_x*((y+1)%para.dim_y) + para.dim_x*para.dim_y*((z+1)%para.dim_z);
+  node_index[7] = (x+1)%para.dim_x + para.dim_x*((y+1)%para.dim_y) + para.dim_x*para.dim_y*((z+1)%para.dim_z);
+
+  particle_force[part_index].f[0] = 0.0f;
+  particle_force[part_index].f[1] = 0.0f;
+  particle_force[part_index].f[2] = 0.0f;
+
+  interpolated_u1 = interpolated_u2 = interpolated_u3 = 0.0f;
+  #pragma unroll
+  for(int i=0; i<8; ++i)
+  {
+      float totmass=0.0f;
+
+      calc_m_from_n(n_a,node_index[i],mode);
+
+      #pragma unroll
+      for(int ii=0;ii<LB_COMPONENTS;ii++)
+      {
+        totmass+=mode[0]+para.rho[ii]*para.agrid*para.agrid*para.agrid;
+      } 
+
+#ifndef SHANCHEN
+      interpolated_u1 += (mode[1]/totmass)*delta[i];
+      interpolated_u2 += (mode[2]/totmass)*delta[i];
+      interpolated_u3 += (mode[3]/totmass)*delta[i];
+#else //SHANCHEN
+      interpolated_u1 += d_v[node_index[i]].v[0]/8.0f;  
+      interpolated_u2 += d_v[node_index[i]].v[1]/8.0f;
+      interpolated_u3 += d_v[node_index[i]].v[2]/8.0f;
+#endif
+ }
+
+  particle_force[part_index].v[0] = interpolated_u1 * para.agrid / para.tau;
+  particle_force[part_index].v[1] = interpolated_u2 * para.agrid / para.tau;
+  particle_force[part_index].v[2] = interpolated_u3 * para.agrid / para.tau; 
+}
+__global__ void calc_virtual_sites_ibm_gpu(LB_nodes_gpu n_a, CUDA_particle_data *particle_data, CUDA_particle_force *particle_force, LB_node_force_gpu node_f, CUDA_particle_seed *part, LB_rho_v_gpu *d_v)
+{
+  // This is a kind of wrapper function which only calls calc_lbtracers_gpu_particle
+  // This setup reflects the two functions calc_fluid_particle_ia and calc_viscous_force
+  // That's because I have no clue of CUDA and how to do it better... :-))
+  
+  unsigned int part_index = blockIdx.y * gridDim.x * blockDim.x + blockDim.x * blockIdx.x + threadIdx.x;
+  unsigned int node_index[8];
+  float delta[8];
+  float delta_j[3];
+  LB_randomnr_gpu rng_part;
+  
+  if(part_index<para.number_of_particles)
+  {
+    if ( particle_data[part_index].isVirtual )
+      calc_virtual_sites_ibm_gpu_particle(n_a, delta, particle_data, particle_force, part_index, &rng_part, delta_j, node_index, node_f, d_v);
+  }
+}
+#endif
+
 
 #ifdef LB_BOUNDARIES_GPU
 /**Bounce back boundary kernel
@@ -3141,6 +3283,14 @@ void lb_calc_particle_lattice_ia_gpu(){
                     gpu_get_particle_force_pointer(), gpu_get_fluid_composition_pointer(),
                     node_f, gpu_get_particle_seed_pointer(), device_rho_v )
                 );
+    
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+      KERNELCALL( calc_virtual_sites_ibm_gpu, dim_grid_particles, threads_per_block_particles, 
+		  ( *current_nodes, gpu_get_particle_pointer(), 
+		    gpu_get_particle_force_pointer(), node_f, 
+		    gpu_get_particle_seed_pointer(), device_rho_v)
+		  );
+#endif 
     }
     else { /** only other option is the three point coupling scheme */
 #ifdef SHANCHEN

@@ -31,6 +31,10 @@ typedef struct {
   /** force on the particle given to md part */
   float f[3];
 
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+  float v[3];
+#endif
+
 } CUDA_particle_force;
 
 
@@ -58,6 +62,11 @@ typedef struct {
   float q;
 #endif
   unsigned int fixed;
+
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+  int isVirtual;
+  float force[3];
+#endif
 
 } CUDA_particle_data;
 

@@ -104,6 +104,13 @@ void cuda_mpi_get_particles(CUDA_particle_data *particle_data_host)
                 particle_data_host[i+g].mu_E[2] = (float)part[i].p.mu_E[2];
   #endif
 
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+		particle_data_host[i+g].isVirtual = part[i].p.isVirtual;
+		particle_data_host[i+g].force[0] = part[i].f.f[0];
+		particle_data_host[i+g].force[1] = part[i].f.f[1];
+		particle_data_host[i+g].force[2] = part[i].f.f[2];              
+#endif      
+
   #ifdef ELECTROSTATICS
                 if (coulomb.method == COULOMB_P3M_GPU || coulomb.method == COULOMB_MMM1D_GPU) { // TODO: this defeats the purpose of needsQ in the interface...
                   particle_data_host[i+g].q = (float)part[i].p.q;
@@ -180,6 +187,14 @@ static void cuda_mpi_get_particles_slave(){
           particle_data_host_sl[i+g].mu_E[2] = (float)part[i].p.mu_E[2];
   #endif
 
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+	  particle_data_host[i+g].isVirtual = part[i].p.isVirtual;
+	  particle_data_host[i+g].force[0] = part[i].f.f[0];
+	  particle_data_host[i+g].force[1] = part[i].f.f[1];
+	  particle_data_host[i+g].force[2] = part[i].f.f[2];              
+#endif 
+	  
+
   #ifdef ELECTROSTATICS
           if (coulomb.method == COULOMB_P3M_GPU || coulomb.method == COULOMB_MMM1D_GPU) {
             particle_data_host_sl[i+g].q = (float)part[i].p.q;
@@ -230,6 +245,14 @@ static void cuda_mpi_get_particles_slave(){
                 }
 #endif
               }
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+              if ( cell->part[i].p.isVirtual )
+		{
+		  cell->part[i].m.v[0] = (double)host_forces[i+g].v[0];
+		  cell->part[i].m.v[1] = (double)host_forces[i+g].v[1];
+		  cell->part[i].m.v[2] = (double)host_forces[i+g].v[2];
+		}
+#endif
         g += npart;
             }
           }
@@ -289,6 +312,14 @@ static void cuda_mpi_send_forces_slave(){
           for (int ii=0;ii<LB_COMPONENTS;ii++) {
              cell->part[i].r.composition[ii] = (double)host_composition_sl[i+g].weight[ii];
           }
+#endif
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+	  if ( cell->part[i].p.isVirtual )
+	    {
+	      cell->part[i].m.v[0] = (double)host_forces_sl[i+g].v[0];
+	      cell->part[i].m.v[1] = (double)host_forces_sl[i+g].v[1];
+	      cell->part[i].m.v[2] = (double)host_forces_sl[i+g].v[2];
+	    }
 #endif
         }
         g += npart;
