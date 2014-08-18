@@ -39,7 +39,7 @@ void update_mol_pos_particle(Particle *p) {
 		
   for(j=0;j<3;j++) 
     {
-      if(integration_rule_ibm == 0) {
+      if(integration_rule_ibm == 0 || (lattice_switch & LATTICE_LB_GPU)) {
 	// Euler
 	p->r.p[j] = p->r.p[j] + p->m.v[j]*time_step;
       }
@@ -70,8 +70,9 @@ void update_mol_vel_particle(Particle *p)
       // Need to interpolate velocity here only for CPU
       // For GPU it is already stored
       double v_int[3] = {0,0,0};
+#ifdef IMMERSED_BOUNDARY
       lb_lbfluid_get_interpolated_velocity_lbtrace(p_temp,v_int, p->p.identity);
-            
+#endif      
       for ( j = 0; j < 3; j++){ 
        
 	p->l.v_old[j] = p->m.v[j];
