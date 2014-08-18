@@ -241,11 +241,6 @@ inline void force_calc()
   if (lattice_switch & LATTICE_LB_GPU && this_node == 0) lattice_boltzmann_calc_shanchen_gpu();
 #endif // SHANCHEN
 
-  // transfer_momentum_gpu check makes sure the LB fluid doesn't get updated on integrate 0
-  // this_node==0 makes sure it is the master node where the gpu exists
-  if (lattice_switch & LATTICE_LB_GPU && transfer_momentum_gpu && (this_node == 0) ) lb_calc_particle_lattice_ia_gpu();
-#endif // LB_GPU
-
 #ifdef ELECTROSTATICS
   if (iccp3m_initialized && iccp3m_cfg.set_flag)
     iccp3m_iteration();
@@ -319,6 +314,11 @@ inline void force_calc()
 
   // Communication Step: ghost forces
   ghost_communicator(&cell_structure.collect_ghost_force_comm);
+
+  // transfer_momentum_gpu check makes sure the LB fluid doesn't get updated on integrate 0
+  // this_node==0 makes sure it is the master node where the gpu exists
+  if (lattice_switch & LATTICE_LB_GPU && transfer_momentum_gpu && (this_node == 0) ) lb_calc_particle_lattice_ia_gpu();
+#endif // LB_GPU
 
 #ifdef IMMERSED_BOUNDARY
   if (lattice_switch & LATTICE_LB) lb_ibm_coupling() ;

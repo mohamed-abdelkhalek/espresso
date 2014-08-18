@@ -2751,30 +2751,12 @@ __device__ void calc_virtual_sites_ibm_gpu_particle(LB_nodes_gpu n_a, float *del
 {  
   // The code below is an exact copy of the first part of calc_viscous_force
   // Now however we should get a different result because the particle forces have been added to the lb fluid
-    int   left_node_index[3];
+  int   left_node_index[3];
   float interpolated_u1, interpolated_u2, interpolated_u3;
-  float interpolated_rho[LB_COMPONENTS];
   float temp_delta[6];
   float temp_delta_half[6];
-  float viscforce[3*LB_COMPONENTS];
-  float scforce[3*LB_COMPONENTS];
   float mode[19*LB_COMPONENTS];
-#ifdef SHANCHEN
-  float gradrho1, gradrho2, gradrho3;
-  float Rho;
-#endif 
-  #pragma unroll
-  for(int ii=0; ii<LB_COMPONENTS; ++ii)
-  { 
-    #pragma unroll
-    for(int jj=0; jj<3; ++jj)
-    { 
-      scforce[jj+ii*3]  =0.0f;
-      viscforce[jj+ii*3]=0.0f;
-      delta_j[jj+ii*3]  =0.0f;
-    }
-}
-    
+
   /** see ahlrichs + duenweg page 8227 equ (10) and (11) */
   #pragma unroll
   for(int i=0; i<3; ++i)
@@ -2830,15 +2812,15 @@ __device__ void calc_virtual_sites_ibm_gpu_particle(LB_nodes_gpu n_a, float *del
         totmass+=mode[0]+para.rho[ii]*para.agrid*para.agrid*para.agrid;
       } 
 
-#ifndef SHANCHEN
+      // Add force, this is different than original calc_viscous_force
+      // Indexing as in calc_node_force
+      mode[1] += node_f.force[0*para.number_of_nodes + node_index[i]];
+      mode[2] += node_f.force[1*para.number_of_nodes + node_index[i]];
+      mode[3] += node_f.force[2*para.number_of_nodes + node_index[i]];
+      // This is again the original
       interpolated_u1 += (mode[1]/totmass)*delta[i];
       interpolated_u2 += (mode[2]/totmass)*delta[i];
       interpolated_u3 += (mode[3]/totmass)*delta[i];
-#else //SHANCHEN
-      interpolated_u1 += d_v[node_index[i]].v[0]/8.0f;  
-      interpolated_u2 += d_v[node_index[i]].v[1]/8.0f;
-      interpolated_u3 += d_v[node_index[i]].v[2]/8.0f;
-#endif
  }
 
   particle_force[part_index].v[0] = interpolated_u1 * para.agrid / para.tau;
