@@ -312,7 +312,7 @@ inline void force_calc()
   ghost_communicator(&cell_structure.collect_ghost_force_comm);
 
 #ifdef IMMERSED_BOUNDARY
-  if (lattice_switch & LATTICE_LB) lb_ibm_coupling() ;
+  lb_ibm_coupling();
 #endif
 
   // transfer_momentum_gpu check makes sure the LB fluid doesn't get updated on integrate 0

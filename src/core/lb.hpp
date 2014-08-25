@@ -28,6 +28,7 @@
 #define LB_H
 
 #include "utils.hpp"
+#include "halo.hpp"
 #include "lattice_inline.hpp"
 
 extern int lb_components ; // global variable holding the number of fluid components
@@ -199,6 +200,10 @@ extern int resend_halo;
 
 extern double gamma_shear;
 extern double gamma_bulk;
+
+#ifdef IMMERSED_BOUNDARY
+extern HaloCommunicator update_halo_comm;
+#endif
 
 /************************************************************/
 /** \name Exported Functions */
@@ -556,9 +561,6 @@ int lb_lbnode_set_pop(int* ind, double* pop);
  * position is not within the local lattice. This version of the function
  * can be called without the position needing to be on the local processor */
 int lb_lbfluid_get_interpolated_velocity_global(double* p, double* v); 
-
-//Calculate interpolated velocity with updated (+f_ext), but not yet streamed modes
-int lb_lbfluid_get_interpolated_velocity_lbtrace(double* p, double* v, int id);
 
 #endif
 

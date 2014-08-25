@@ -51,7 +51,7 @@ void couple_trace_to_fluid(Particle *p);
  *
  * @param p          The coupled particle (Input).
  */
-int lb_lbfluid_get_interpolated_velocity_lbtrace(double* p, double* v, int id);
+int lb_lbfluid_get_interpolated_velocity_ibm(double* p, double* v, int id);
 
 /** Force density rescaling when external forces are defined
  */

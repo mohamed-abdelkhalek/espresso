@@ -30,7 +30,12 @@
  *
  */
 
-#include "lb.cpp"
+#include "lb.hpp"
+#include "lb-boundaries.hpp"
+#include "grid.hpp"
+#include "domain_decomposition.hpp"
+#include "halo.hpp"
+#include "communication.hpp"
 #include "ibm.hpp"
 
 #ifdef IMMERSED_BOUNDARY
@@ -144,7 +149,7 @@ void couple_trace_to_fluid(Particle *p) {
   // End DEBUG  
 }
 
-int lb_lbfluid_get_interpolated_velocity_lbtrace(double* p, double* v, int id) {
+int lb_lbfluid_get_interpolated_velocity_ibm(double* p, double* v, int id) {
   index_t node_index[8], index;
   double delta[6];
   double local_rho, local_j[3], interpolated_u[3];

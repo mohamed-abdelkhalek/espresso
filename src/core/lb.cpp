@@ -2719,7 +2719,6 @@ void lattice_boltzmann_update() {
 /***********************************************************************/
 /*@{*/
 
-
 /** Coupling of a single particle to viscous fluid with Stokesian friction.
  * 
  * Section II.C. Ahlrichs and Duenweg, JCP 111(17):8225 (1999)
@@ -2989,10 +2988,6 @@ void calc_particle_lattice_ia() {
     
     /* communicate the random numbers */
     ghost_communicator(&cell_structure.ghost_lbcoupling_comm) ;
-
-// #ifdef STRETCHING_FORCE_IMMERSED_BOUNDARY
-//     ghost_communicator(&cell_structure.ghost_stretching_force_ibm_comm);
-// #endif    
     
     /* local cells */
     for (c=0;c<local_cells.n;c++) {
@@ -3004,6 +2999,7 @@ void calc_particle_lattice_ia() {
 
 #ifdef IMMERSED_BOUNDARY
 	if(!ifParticleIsVirtual(&p[i])) { 
+
 	  lb_viscous_coupling(&p[i],force);
 
 	  /* add force to the particle */
@@ -3014,54 +3010,52 @@ void calc_particle_lattice_ia() {
 	  ONEPART_TRACE(if(p->p.identity==check_id) fprintf(stderr,"%d: OPT: LB f = (%.6e,%.3e,%.3e)\n",this_node,p->f.f[0],p->f.f[1],p->f.f[2]));
 	}
 #else 
-	lb_viscous_coupling(&p[i],force);
+      lb_viscous_coupling(&p[i],force);
 
-        /* add force to the particle */
-        p[i].f.f[0] += force[0];
-        p[i].f.f[1] += force[1];
-        p[i].f.f[2] += force[2];
+      /* add force to the particle */
+      p[i].f.f[0] += force[0];
+      p[i].f.f[1] += force[1];
+      p[i].f.f[2] += force[2];
 
-        ONEPART_TRACE(if(p->p.identity==check_id) fprintf(stderr,"%d: OPT: LB f = (%.6e,%.3e,%.3e)\n",this_node,p->f.f[0],p->f.f[1],p->f.f[2]));
-      }
+      ONEPART_TRACE(if(p->p.identity==check_id) fprintf(stderr,"%d: OPT: LB f = (%.6e,%.3e,%.3e)\n",this_node,p->f.f[0],p->f.f[1],p->f.f[2]));
 #endif
-      }
-
     }
+  }
 
-  /* ghost cells */
-  for (c=0;c<ghost_cells.n;c++) {
-    cell = ghost_cells.cell[c] ;
-    p = cell->part ;
-    np = cell->n ;
+/* ghost cells */
+for (c=0;c<ghost_cells.n;c++) {
+  cell = ghost_cells.cell[c] ;
+  p = cell->part ;
+  np = cell->n ;
 
-    for (i=0;i<np;i++) {
-      /* for ghost particles we have to check if they lie
-       * in the range of the local lattice nodes */
-      if (p[i].r.p[0] >= my_left[0]-0.5*lblattice.agrid[0] 
-	  && p[i].r.p[0] < my_right[0]+0.5*lblattice.agrid[0]
-	  && p[i].r.p[1] >= my_left[1]-0.5*lblattice.agrid[1] 
-	  && p[i].r.p[1] < my_right[1]+0.5*lblattice.agrid[1]
-	  && p[i].r.p[2] >= my_left[2]-0.5*lblattice.agrid[2] 
-	  && p[i].r.p[2] < my_right[2]+0.5*lblattice.agrid[2]) {
+  for (i=0;i<np;i++) {
+    /* for ghost particles we have to check if they lie
+     * in the range of the local lattice nodes */
+    if (p[i].r.p[0] >= my_left[0]-0.5*lblattice.agrid[0] 
+	&& p[i].r.p[0] < my_right[0]+0.5*lblattice.agrid[0]
+	&& p[i].r.p[1] >= my_left[1]-0.5*lblattice.agrid[1] 
+	&& p[i].r.p[1] < my_right[1]+0.5*lblattice.agrid[1]
+	&& p[i].r.p[2] >= my_left[2]-0.5*lblattice.agrid[2] 
+	&& p[i].r.p[2] < my_right[2]+0.5*lblattice.agrid[2]) {
 
-	ONEPART_TRACE(if(p[i].p.identity==check_id) fprintf(stderr,"%d: OPT: LB coupling of ghost particle:\n",this_node));
+      ONEPART_TRACE(if(p[i].p.identity==check_id) fprintf(stderr,"%d: OPT: LB coupling of ghost particle:\n",this_node));
 #ifdef IMMERSED_BOUNDARY
-	if(!ifParticleIsVirtual(&p[i])) { 
-          lb_viscous_coupling(&p[i],force);
-	}
-#else
+      if(!ifParticleIsVirtual(&p[i])) { 
 	lb_viscous_coupling(&p[i],force);
+      }
+#else
+      lb_viscous_coupling(&p[i],force);
 #endif      
 
-          /* ghosts must not have the force added! */
+      /* ghosts must not have the force added! */
 
-          ONEPART_TRACE(if(p->p.identity==check_id) fprintf(stderr,"%d: OPT: LB f = (%.6e,%.3e,%.3e)\n",this_node,p->f.f[0],p->f.f[1],p->f.f[2]));
+      ONEPART_TRACE(if(p->p.identity==check_id) fprintf(stderr,"%d: OPT: LB f = (%.6e,%.3e,%.3e)\n",this_node,p->f.f[0],p->f.f[1],p->f.f[2]));
 
-        }
-      }
     }
-
   }
+ }
+
+}
 }
 
 /***********************************************************************/
