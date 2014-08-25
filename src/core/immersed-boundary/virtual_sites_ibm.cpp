@@ -26,7 +26,7 @@
 #include "communication.hpp"
 #include "particle_data.hpp"
 
-int integration_rule_ibm = 1;
+int integration_rule_ibm = 0;
 
 #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
 
@@ -75,7 +75,7 @@ void update_mol_vel_particle(Particle *p)
 #endif      
       for ( j = 0; j < 3; j++){ 
        
-	p->l.v_old[j] = p->m.v[j];
+	// p->l.v_old[j] = p->m.v[j];
 	p->m.v[j] = v_int[j];
 
       }

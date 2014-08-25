@@ -107,10 +107,10 @@ static size_t size_of_extern_nodeforces;
 static __device__ __constant__ LB_parameters_gpu para;
 static const float c_sound_sq = 1.0f/3.0f;
 
-// #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
-// __global__ void calc_virtual_sites_ibm_gpu(LB_nodes_gpu n_a, CUDA_particle_data *particle_data, CUDA_particle_force *particle_force, LB_node_force_gpu node_f, CUDA_particle_seed *part);
-// __device__ void calc_virtual_sites_ibm_gpu_particle(LB_nodes_gpu n_a, float *delta, CUDA_particle_data *particle_data, CUDA_particle_force *particle_force, unsigned int part_index, LB_randomnr_gpu *rn_part, float *delta_j, unsigned int *node_index, LB_node_force_gpu node_f);
-// #endif
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+__global__ void calc_virtual_sites_ibm_gpu(LB_nodes_gpu n_a, CUDA_particle_data *particle_data, CUDA_particle_force *particle_force, LB_node_force_gpu node_f, CUDA_particle_seed *part);
+__device__ void calc_virtual_sites_ibm_gpu_particle(LB_nodes_gpu n_a, float *delta, CUDA_particle_data *particle_data, CUDA_particle_force *particle_force, unsigned int part_index, LB_randomnr_gpu *rn_part, float *delta_j, unsigned int *node_index, LB_node_force_gpu node_f);
+#endif
 
 /*-------------------------------------------------------*/
 /*********************************************************/
@@ -1960,25 +1960,30 @@ __device__ void calc_viscous_force(LB_nodes_gpu n_a, float *delta, float * partg
 #endif 
 
     /** delta_j for transform momentum transfer to lattice units which is done in calc_node_force
-    (Eq. (12) Ahlrichs and Duenweg, JCP 111(17):8225 (1999)) */
+	(Eq. (12) Ahlrichs and Duenweg, JCP 111(17):8225 (1999)) */
+#ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
+    if(!particle_data[part_index].isVirtual) { 
+      particle_force[part_index].f[0] += viscforce[0+ii*3];
+      particle_force[part_index].f[1] += viscforce[1+ii*3];
+      particle_force[part_index].f[2] += viscforce[2+ii*3];
 
-    particle_force[part_index].f[0] += viscforce[0+ii*3];
-    particle_force[part_index].f[1] += viscforce[1+ii*3];
-    particle_force[part_index].f[2] += viscforce[2+ii*3];
-    
-    /* the average force from the particle to surrounding nodes is transmitted back to preserve momentum */
-    for(int node=0 ; node < 8 ; node++ ) { 
+      /* the average force from the particle to surrounding nodes is transmitted back to preserve momentum */
+      for(int node=0 ; node < 8 ; node++ ) { 
       particle_force[part_index].f[0] -= partgrad1[node+ii*8]/8.0f;
       particle_force[part_index].f[1] -= partgrad2[node+ii*8]/8.0f;
       particle_force[part_index].f[2] -= partgrad3[node+ii*8]/8.0f;
     }
+    }
+#endif
 
 #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
     if ( particle_data[part_index].isVirtual )
       {
-   delta_j[0+3*ii] =  particle_data[part_index].force[0]*para.time_step*para.tau/para.agrid;
-   delta_j[1+3*ii] =  particle_data[part_index].force[1]*para.time_step*para.tau/para.agrid;
-   delta_j[2+3*ii] =  particle_data[part_index].force[2]*para.time_step*para.tau/para.agrid;
+   
+      // printf("Force: %.20f \n", particle_data[part_index].force[0]);
+   delta_j[0+3*ii] = particle_data[part_index].force[0]*para.time_step*para.tau/para.agrid;
+   delta_j[1+3*ii] = particle_data[part_index].force[1]*para.time_step*para.tau/para.agrid;
+   delta_j[2+3*ii] = particle_data[part_index].force[2]*para.time_step*para.tau/para.agrid;
  }
     else
       {

@@ -131,11 +131,11 @@ inline int calc_stretching_force_ibm(Particle *p_ind1, Particle *p_ind2, Particl
     //l = length between 1 and 3
 
     get_mi_vector(vec2, p_ind3->r.p, p_ind1->r.p);
-    vecsub(p_ind3->r.p,p_ind1->r.p,vec2);
+    // vecsub(p_ind3->r.p,p_ind1->r.p,vec2);
     l = sqrt (sqrlen(vec2));
     // lp = lenght between 1 and 2
     get_mi_vector(vec1, p_ind2->r.p, p_ind1->r.p);
-    vecsub(p_ind2->r.p,p_ind1->r.p,vec1);
+    // vecsub(p_ind2->r.p,p_ind1->r.p,vec1);
     lp = sqrt (sqrlen(vec1));
     //cosp / sinp angle functions between these vectors; calculated directly via the producs
     cosp = scalar(vec1,vec2)/(lp*l);

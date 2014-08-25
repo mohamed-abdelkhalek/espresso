@@ -83,6 +83,8 @@ void cuda_mpi_get_particles(CUDA_particle_data *particle_data_host)
               for (i=0;i<npart;i++) {
                 memcpy(pos, part[i].r.p, 3*sizeof(double));
                 fold_position(pos, dummy);
+		// printf("Vel as double: %d, Vel as float: %f \n", part[i].m.v[0], (float)part[i].m.v[0]);
+	
                 particle_data_host[i+g].p[0] = (float)pos[0];
                 particle_data_host[i+g].p[1] = (float)pos[1];
                 particle_data_host[i+g].p[2] = (float)pos[2];
@@ -106,9 +108,10 @@ void cuda_mpi_get_particles(CUDA_particle_data *particle_data_host)
 
 #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
 		particle_data_host[i+g].isVirtual = part[i].p.isVirtual;
-		particle_data_host[i+g].force[0] = part[i].f.f[0];
-		particle_data_host[i+g].force[1] = part[i].f.f[1];
-		particle_data_host[i+g].force[2] = part[i].f.f[2];              
+		printf("Force as double: %d, Force as float: %e \n", part[i].f.f[0], (float)(part[i].f.f[0]+0.0));
+		particle_data_host[i+g].force[0] = static_cast<float>(part[i].f.f[0]);
+		particle_data_host[i+g].force[1] = static_cast<float>(part[i].f.f[1]);
+		particle_data_host[i+g].force[2] = static_cast<float>(part[i].f.f[2]);             
 #endif      
 
   #ifdef ELECTROSTATICS
@@ -244,7 +247,7 @@ static void cuda_mpi_get_particles_slave(){
                    cell->part[i].r.composition[ii] = (double)host_composition[i+g].weight[ii];
                 }
 #endif
-              }
+      
 #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
               if ( cell->part[i].p.isVirtual )
 		{
@@ -253,9 +256,11 @@ static void cuda_mpi_get_particles_slave(){
 		  cell->part[i].m.v[2] = (double)host_forces[i+g].v[2];
 		}
 #endif
+	      }
         g += npart;
-            }
-          }
+            
+	    }
+	  }
           else {
           /* and send it back to the slave node */
           MPI_Send(&host_forces[g], sizes[pnode]*sizeof(CUDA_particle_force), MPI_BYTE, pnode, REQ_CUDAGETFORCES, comm_cart);      
