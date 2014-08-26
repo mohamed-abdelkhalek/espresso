@@ -1961,6 +1961,7 @@ __device__ void calc_viscous_force(LB_nodes_gpu n_a, float *delta, float * partg
 
     /** delta_j for transform momentum transfer to lattice units which is done in calc_node_force
 	(Eq. (12) Ahlrichs and Duenweg, JCP 111(17):8225 (1999)) */
+	//CHANGE the condition for virtual particles was not there 
 #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
     if(!particle_data[part_index].isVirtual) { 
       particle_force[part_index].f[0] += viscforce[0+ii*3];
@@ -1979,11 +1980,11 @@ __device__ void calc_viscous_force(LB_nodes_gpu n_a, float *delta, float * partg
 #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
     if ( particle_data[part_index].isVirtual )
       {
-   
-      // printf("Force: %.20f \n", particle_data[part_index].force[0]);
-   delta_j[0+3*ii] = particle_data[part_index].force[0]*para.time_step*para.tau/para.agrid;
-   delta_j[1+3*ii] = particle_data[part_index].force[1]*para.time_step*para.tau/para.agrid;
-   delta_j[2+3*ii] = particle_data[part_index].force[2]*para.time_step*para.tau/para.agrid;
+	//CHANGE in original version this delta was set with = but now forces are added with += 
+	// printf("Force: (%e, %e, %e) \n", particle_data[part_index].force[0], particle_data[part_index].force[1], particle_data[part_index].force[2]);
+   delta_j[0+3*ii] += particle_data[part_index].force[0]*para.time_step*para.tau/para.agrid;
+   delta_j[1+3*ii] += particle_data[part_index].force[1]*para.time_step*para.tau/para.agrid;
+   delta_j[2+3*ii] += particle_data[part_index].force[2]*para.time_step*para.tau/para.agrid;
  }
     else
       {
@@ -2815,22 +2816,26 @@ __device__ void calc_virtual_sites_ibm_gpu_particle(LB_nodes_gpu n_a, float *del
       for(int ii=0;ii<LB_COMPONENTS;ii++)
       {
         totmass+=mode[0]+para.rho[ii]*para.agrid*para.agrid*para.agrid;
+	// Add force, this is different than original calc_viscous_force
+	// Indexing as in calc_node_force
+	//CHANGE this was outside this loop, this loop did not exist in 3.1
+	mode[1] += node_f.force[(0+ii*3)*para.number_of_nodes + node_index[i]];
+	mode[2] += node_f.force[(1+ii*3)*para.number_of_nodes + node_index[i]];
+	mode[3] += node_f.force[(2+ii*3)*para.number_of_nodes + node_index[i]];
       } 
 
-      // Add force, this is different than original calc_viscous_force
-      // Indexing as in calc_node_force
-      mode[1] += node_f.force[0*para.number_of_nodes + node_index[i]];
-      mode[2] += node_f.force[1*para.number_of_nodes + node_index[i]];
-      mode[3] += node_f.force[2*para.number_of_nodes + node_index[i]];
+
       // This is again the original
       interpolated_u1 += (mode[1]/totmass)*delta[i];
       interpolated_u2 += (mode[2]/totmass)*delta[i];
       interpolated_u3 += (mode[3]/totmass)*delta[i];
  }
-
+  
+ 
   particle_force[part_index].v[0] = interpolated_u1 * para.agrid / para.tau;
   particle_force[part_index].v[1] = interpolated_u2 * para.agrid / para.tau;
   particle_force[part_index].v[2] = interpolated_u3 * para.agrid / para.tau; 
+  // printf("Velocity: (%e, %e, %e) \n", particle_data[part_index].v[0], particle_data[part_index].v[1], particle_data[part_index].v[2]);
 }
 __global__ void calc_virtual_sites_ibm_gpu(LB_nodes_gpu n_a, CUDA_particle_data *particle_data, CUDA_particle_force *particle_force, LB_node_force_gpu node_f, CUDA_particle_seed *part, LB_rho_v_gpu *d_v)
 {

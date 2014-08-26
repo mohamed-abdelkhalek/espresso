@@ -315,14 +315,17 @@ inline void force_calc()
   lb_ibm_coupling();
 #endif
 
+  //CHANGE when should this happen, in original it happens after lb_calc_particle_lattice_ia_gpu(); but that doesn't seem right ?
+#ifdef CUDA
+  copy_forces_from_GPU();
+#endif
+  
+  //CHANGE this was moved to here after the virtual sites communication possibly for the same reason as the cpu compiled version
   // transfer_momentum_gpu check makes sure the LB fluid doesn't get updated on integrate 0
   // this_node==0 makes sure it is the master node where the gpu exists
   if (lattice_switch & LATTICE_LB_GPU && transfer_momentum_gpu && (this_node == 0) ) lb_calc_particle_lattice_ia_gpu();
 #endif // LB_GPU
 
-#ifdef CUDA
-  copy_forces_from_GPU();
-#endif
 
   // apply trap forces to trapped molecules
 #ifdef MOLFORCES
