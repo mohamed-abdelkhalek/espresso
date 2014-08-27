@@ -229,7 +229,7 @@ inline void force_calc()
   prepare_collision_queue();
 #endif
 
-  espressoSystemInterface.update();
+  
 
   // Compute the forces from the force objects
   for (ActorList::iterator actor = forceActors.begin();
@@ -265,6 +265,9 @@ inline void force_calc()
     nsq_calculate_ia();
 
   }
+
+  //CHANGE for ibm_gpu this update copies particle data to gpu needs to happen after the previous calculate_verlet_ia which is where forces are calculated
+espressoSystemInterface.update();
 
 #ifdef VOLUME_FORCE
     double volume=0.;
@@ -315,10 +318,7 @@ inline void force_calc()
   lb_ibm_coupling();
 #endif
 
-  //CHANGE when should this happen, in original it happens after lb_calc_particle_lattice_ia_gpu(); but that doesn't seem right ?
-#ifdef CUDA
-  copy_forces_from_GPU();
-#endif
+
   
   //CHANGE this was moved to here after the virtual sites communication possibly for the same reason as the cpu compiled version
   // transfer_momentum_gpu check makes sure the LB fluid doesn't get updated on integrate 0
@@ -330,6 +330,11 @@ inline void force_calc()
   // apply trap forces to trapped molecules
 #ifdef MOLFORCES
   calc_and_apply_mol_constraints();
+#endif
+
+ //NO CHANGE when should this happen ?, this is correct for ibm virtual particles, but what happens when we have other particles ?
+#ifdef CUDA
+  copy_forces_from_GPU();
 #endif
 
   // should be pretty late, since it needs to zero out the total force

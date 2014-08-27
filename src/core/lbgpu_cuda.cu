@@ -1981,10 +1981,9 @@ __device__ void calc_viscous_force(LB_nodes_gpu n_a, float *delta, float * partg
     if ( particle_data[part_index].isVirtual )
       {
 	//CHANGE in original version this delta was set with = but now forces are added with += 
-	// printf("Force: (%e, %e, %e) \n", particle_data[part_index].force[0], particle_data[part_index].force[1], particle_data[part_index].force[2]);
-   delta_j[0+3*ii] += particle_data[part_index].force[0]*para.time_step*para.tau/para.agrid;
-   delta_j[1+3*ii] += particle_data[part_index].force[1]*para.time_step*para.tau/para.agrid;
-   delta_j[2+3*ii] += particle_data[part_index].force[2]*para.time_step*para.tau/para.agrid;
+	delta_j[0+3*ii] += particle_data[part_index].force[0]*para.time_step*para.tau/para.agrid;
+	delta_j[1+3*ii] += particle_data[part_index].force[1]*para.time_step*para.tau/para.agrid;
+	delta_j[2+3*ii] += particle_data[part_index].force[2]*para.time_step*para.tau/para.agrid;
  }
     else
       {

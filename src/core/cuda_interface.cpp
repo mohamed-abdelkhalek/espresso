@@ -108,10 +108,9 @@ void cuda_mpi_get_particles(CUDA_particle_data *particle_data_host)
 
 #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
 		particle_data_host[i+g].isVirtual = part[i].p.isVirtual;
-		printf("Force as double: %d, Force as float: %e \n", part[i].f.f[0], (float)(part[i].f.f[0]+0.0));
-		particle_data_host[i+g].force[0] = static_cast<float>(part[i].f.f[0]);
-		particle_data_host[i+g].force[1] = static_cast<float>(part[i].f.f[1]);
-		particle_data_host[i+g].force[2] = static_cast<float>(part[i].f.f[2]);             
+		particle_data_host[i+g].force[0] = (float)(part[i].f.f[0]);
+		particle_data_host[i+g].force[1] = (float)(part[i].f.f[1]);
+		particle_data_host[i+g].force[2] = (float)(part[i].f.f[2]);             
 #endif      
 
   #ifdef ELECTROSTATICS
@@ -192,9 +191,9 @@ static void cuda_mpi_get_particles_slave(){
 
 #ifdef VIRTUAL_SITES_IMMERSED_BOUNDARY
 	  particle_data_host[i+g].isVirtual = part[i].p.isVirtual;
-	  particle_data_host[i+g].force[0] = part[i].f.f[0];
-	  particle_data_host[i+g].force[1] = part[i].f.f[1];
-	  particle_data_host[i+g].force[2] = part[i].f.f[2];              
+	  particle_data_host[i+g].force[0] = (float)part[i].f.f[0];
+	  particle_data_host[i+g].force[1] = (float)part[i].f.f[1];
+	  particle_data_host[i+g].force[2] = (float)part[i].f.f[2];              
 #endif 
 	  
 
